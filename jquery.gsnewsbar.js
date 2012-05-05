@@ -1,5 +1,5 @@
 /* http://keith-wood.name/gsnewsbar.html
-   Google Search Newsbar for jQuery v1.0.1.
+   Google Search Newsbar for jQuery v1.0.2.
    See http://www.google.com/uds/solutions/newsbar/reference.html.
    Written by Keith Wood (kbwood{at}iinet.com.au) November 2008.
    Dual licensed under the GPL (http://dev.jquery.com/browser/trunk/jquery/GPL-LICENSE.txt) and 
@@ -174,7 +174,7 @@ $.fn.gsnewsbar = function(options) {
 };
 
 // Add required external files - note: key must be set before loading this module
-if ($('script[src*=www.google.com/uds/api?file=uds.js]').length == 0) {
+if ($('script[src*="www.google.com/uds/api?file=uds.js"]').length == 0) {
 	if (!$.googleSearchKey) {
 		throw 'Missing Google Search Key';
 	}
