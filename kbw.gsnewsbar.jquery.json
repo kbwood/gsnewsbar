@@ -1,0 +1,37 @@
+{
+	"name": "kbw.gsnewsbar",
+	"title": "jQuery Google Search Newsbar",
+	"description": "This plugin sets a div or span to show a Google Search Newsbar.",
+	"keywords": [
+		"google",
+		"news",
+		"newsbar",
+		"search",
+		"ui"
+	],
+	"version": "1.1.0",
+	"author": {
+		"name": "Keith Wood",
+		"url": "http://keith-wood.name/"
+	},
+	"maintainers": [
+		{
+			"name": "Keith Wood",
+			"email": "kbwood@iinet.com.au",
+			"url": "http://keith-wood.name/"
+		}
+	],
+	"licenses": [
+		{
+			"type": "MIT",
+			"url": "https://github.com/jquery/jquery/blob/master/MIT-LICENSE.txt"
+		}
+	],
+	"bugs": "https://github.com/kbwood/gsnewsbar/issues",
+	"homepage": "http://keith-wood.name/gsnewsbar.html",
+	"docs": "http://keith-wood.name/gsnewsbarRef.html",
+	"download": "http://keith-wood.name/gsnewsbar.html",
+	"dependencies": {
+		"jquery": ">=1.4"
+	}
+}
