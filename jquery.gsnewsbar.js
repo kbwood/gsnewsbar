@@ -1,199 +1,138 @@
 /* http://keith-wood.name/gsnewsbar.html
-   Google Search Newsbar for jQuery v1.1.0.
+   Google Search Newsbar for jQuery v2.0.0.
    See http://www.google.com/uds/solutions/newsbar/reference.html.
    Written by Keith Wood (kbwood{at}iinet.com.au) November 2008.
    Available under the MIT (https://github.com/jquery/jquery/blob/master/MIT-LICENSE.txt) license. 
    Please attribute the author if you use it. */
+   
+(function($) { // hide the namespace
 
-/* Display a Google Search Newsbar.
-   Attach it with options like:
-   $('div selector').gsnewsbar({search: ['jquery']});
-*/
+	var pluginName = 'gsnewsbar';
 
-(function($) { // Hide scope, no $ conflict
+	/** Create the Google Search Newsbar plugin.
+		<p>Sets a <code>div</code> to display a newsbar.</p>
+		<p>Expects HTML like:</p>
+		<pre>&lt;div>&lt;/div></pre>
+		<p>Provide inline configuration like:</p>
+		<pre>&lt;div data-gsnewsbar="name: 'value'">&lt;/div></pre>
+	 	@module GSNewsBar
+		@augments JQPlugin
+		@example $(selector).gsnewsbar({search: ['jquery']}); */
+	$.JQPlugin.createPlugin({
+	
+		/** The name of the plugin. */
+		name: pluginName,
 
-/* GSNewsbar manager. */
-function GSNewsbar() {
-	this._defaults = {
-		horizontal: true, // True for horizontal display, false for vertical
-		verticalCompressed: false, // True for compressed layout when vertical, false for expanded
-		title: '', // Title for the bar
-		search: 'jquery', // Single or list of search terms
-		manyResults: false, // True for many results, false for only a few
-		cycleTime: this.cycleManual, // Time between cycles of the search terms
-		cycleMode: this.cycleLinear, // Mode of cycling through the search terms
-		linkTarget: this.targetSelf, // Control where the news links open
-		currentResult: '' // jQuery selector, jQuery object, or element for 
-			// additional info for current entry when horizontal
-	};
-}
+		/** Cycle times - very short. */
+		cycleVShort: 3000,
+		/** Cycle times - short. */
+		cycleShort: 10000,
+		/** Cycle times - medium. */
+		cycleMedium: 15000,
+		/** Cycle times - long. */
+		cycleLong: 30000,
+		/** Cycle times - manual (default). */
+		cycleManual: 3000000,
+		/** Cycle modes - random. */
+		cycleRandom: 1,
+		/** Cycle modes - linear (default). */
+		cycleLinear: 2,
+		/** Link targets - self (default). */
+		targetSelf: '_self',
+		/** Link targets - blank. */
+		targetBlank: '_blank',
+		/** Link targets - top. */
+		targetTop: '_top',
+		/** Link targets - parent. */
+		targetParent: '_parent',
+			
+		/** Default settings for the plugin.
+			@property [horizontal=true] {boolean} <code>true</code> for horizontal display,
+						or <code>false</code> for vertical.
+			@property [verticalCompressed=false] {boolean} <code>true</code> for compressed layout when vertical,
+						or <code>false</code> for expanded.
+			@property [title=''] {string} Title for the bar.
+			@property [search='jquery'] {string|string[]} Single or list of search terms.
+			@property [manyResults=false] {boolean} <code>true</code> for many results,
+						or <code>false</code> for only a few.
+			@property [cycleTime=this.cycleManual] {number} Time between cycles of the search terms (milliseconds).
+			@property [cycleMode=this.cycleLinear] {number} Mode of cycling through the search terms.
+			@property [linkTarget=this.targetSelf] {string} Control where the news links open.
+			@property [currentResult=''] {string|jQuery|Element} jQuery selector, jQuery object,
+						or element for additional info for current entry when horizontal. */
+		defaultOptions: {
+			horizontal: true,
+			verticalCompressed: false,
+			title: '',
+			search: 'jquery',
+			manyResults: false,
+			cycleTime: this.cycleManual,
+			cycleMode: this.cycleLinear,
+			linkTarget: this.targetSelf,
+			currentResult: ''
+		},
+		
+		_init: function() {
+			this.defaultOptions.cycleTime = this.cycleManual,
+			this.defaultOptions.cycleMode = this.cycleLinear;
+			this.defaultOptions.linkTarget = this.targetSelf;
+			this._super();
+		},
 
-$.extend(GSNewsbar.prototype, {
-	/* Class name added to elements to indicate already configured with GSNewsbar. */
-	markerClassName: 'hasGSNewsbar',
-	/* Name of the data property for instance settings. */
-	propertyName: 'gsnewsbar',
+		_optionsChanged: function(elem, inst, options) {
+			$.extend(inst.options, options);
+			this._updateGSNewsbar(elem[0], inst);
+		},
 
-	/* Cycle times. */
-	cycleVShort: 3000,
-	cycleShort: 10000,
-	cycleMedium: 15000, // Default
-	cycleLong: 30000,
-	cycleManual: 3000000,
-	/* Cycle modes. */
-	cycleRandom: 1,
-	cycleLinear: 2, // Default
-	/* Link targets. */
-	targetSelf: '_self',
-	targetBlank: '_blank',
-	targetTop: '_top',
-	targetParent: '_parent',
+		/** Redisplay the newsbar with an updated display.
+			@private
+			@param elem {Element} The affected division.
+			@param inst {object} The instance settings. */
+		_updateGSNewsbar: function(elem, inst) {
+			var getElement = function(selector) {
+				var element = inst.options[selector];
+				element = (element ? (element.jQuery ? element : $(element)) : null);
+				return (element && element.length ? element[0] : null);
+			};
+			var search = inst.options.search;
+			search = ($.isArray(search) ? search : [search]);
+			inst.newsbar = new GSnewsBar(elem,
+				{largeResultSet: inst.options.manyResults, horizontal: inst.options.horizontal,
+				resultStyle: (inst.options.verticalCompressed ? 2 : 1),
+				title: inst.options.title, linkTarget: inst.options.linkTarget,
+				currentResult: getElement('currentResult'),
+				autoExecuteList: {executeList: search, cycleTime: inst.options.cycleTime,
+					cycleMode: inst.options.cycleMode}});
+		},
 
-	/* Override the default settings for all GSNewsbar instances.
-	   @param  options  (object) the new settings to use as defaults
-	   @return  (GSNewsbar) this object */
-	setDefaults: function(options) {
-		$.extend(this._defaults, options || {});
-		return this;
-	},
-
-	/* Attach the newsbar widget to a div.
-	   @param  target   (element) the control to affect
-	   @param  options  (object) the custom options for this instance */
-	_attachPlugin: function(target, options) {
-		target = $(target);
-		if (target.hasClass(this.markerClassName)) {
-			return;
-		}
-		var inst = {options: $.extend({}, this._defaults, options), target: target};
-		target.addClass(this.markerClassName).data(this.propertyName, inst);
-		this._optionPlugin(target, options);
-	},
-
-	/* Retrieve or reconfigure the settings for a control.
-	   @param  target   (element) the control to affect
-	   @param  options  (object) the new options for this instance or
-	                    (string) an individual property name
-	   @param  value    (any) the individual property value (omit if options
-	                    is an object or to retrieve the value of a setting)
-	   @return  (any) if retrieving a value */
-	_optionPlugin: function(target, options, value) {
-		target = $(target);
-		var inst = target.data(this.propertyName);
-		if (!options || (typeof options == 'string' && value == null)) { // Get option
-			var name = options;
-			options = (inst || {}).options;
-			return (options && name ? options[name] : options);
-		}
-
-		if (!target.hasClass(this.markerClassName)) {
-			return;
-		}
-		options = options || {};
-		if (typeof options == 'string') {
-			var name = options;
-			options = {};
-			options[name] = value;
-		}
-		$.extend(inst.options, options);
-		this._updateGSNewsbar(target[0], inst);
-	},
-
-	/* Redisplay the newsbar with an updated display.
-	   @param  target  (element) the affected division
-	   @param  inst    (object) the instance settings */
-	_updateGSNewsbar: function(target, inst) {
-		var getElement = function(selector) {
-			var element = inst.options[selector];
-			element = (element ? (element.jQuery ? element : $(element)) : null);
-			return (element && element.length ? element[0] : null);
-		};
-		var search = inst.options.search;
-		search = ($.isArray(search) ? search : [search]);
-		inst.newsbar = new GSnewsBar(target,
-			{largeResultSet: inst.options.manyResults, horizontal: inst.options.horizontal,
-			resultStyle: (inst.options.verticalCompressed ? 2 : 1),
-			title: inst.options.title, linkTarget: inst.options.linkTarget,
-			currentResult: getElement('currentResult'),
-			autoExecuteList: {executeList: search, cycleTime: inst.options.cycleTime,
-				cycleMode: inst.options.cycleMode}});
-	},
-
-	/* Perform a new seacrh in the newsbar.
-	   @param  target  (element) the affected division
-	   @param  search  (string) the new search terms */
-	_searchPlugin: function(target, search) {
-		var inst = $.data(target, this.propertyName);
-		if (inst) {
-			$.extend(inst.options, {search: search});
-			inst.newsbar.execute(search);
-		}
-	},
-
-	/* Remove the plugin functionality from a control.
-	   @param  target  (element) the control to affect */
-	_destroyPlugin: function(target) {
-		target = $(target);
-		if (!target.hasClass(this.markerClassName)) {
-			return;
-		}
-		target.removeClass(this.markerClassName).empty().removeData(this.propertyName);
-	}
-});
-
-// The list of commands that return values and don't permit chaining
-var getters = [];
-
-/* Determine whether a command is a getter and doesn't permit chaining.
-   @param  command    (string, optional) the command to run
-   @param  otherArgs  ([], optional) any other arguments for the command
-   @return  true if the command is a getter, false if not */
-function isNotChained(command, otherArgs) {
-	if (command == 'option' && (otherArgs.length == 0 ||
-			(otherArgs.length == 1 && typeof otherArgs[0] == 'string'))) {
-		return true;
-	}
-	return $.inArray(command, getters) > -1;
-}
-
-/* Attach the GSNewsbar functionality to a jQuery selection.
-   @param  options  (object) the new settings to use for these instances (optional) or
-                    (string) the command to run (optional)
-   @return  (jQuery) for chaining further calls or
-            (any) getter value */
-$.fn.gsnewsbar = function(options) {
-	var otherArgs = Array.prototype.slice.call(arguments, 1);
-	if (isNotChained(options, otherArgs)) {
-		return plugin['_' + options + 'Plugin'].apply(plugin, [this[0]].concat(otherArgs));
-	}
-	return this.each(function() {
-		if (typeof options == 'string') {
-			if (!plugin['_' + options + 'Plugin']) {
-				throw 'Unknown command: ' + options;
+		/** Perform a new search in the newsbar.
+			@param elem {Element} The affected division.
+			@param search {string} The new search terms. */
+		search: function(elem, search) {
+			var inst = this._getInst(elem);
+			if (inst) {
+				$.extend(inst.options, {search: search});
+				inst.newsbar.execute(search);
 			}
-			plugin['_' + options + 'Plugin'].apply(plugin, [this].concat(otherArgs));
-		}
-		else {
-			plugin._attachPlugin(this, options || {});
+		},
+
+		_preDestroy: function(elem, inst) {
+			elem.empty();
 		}
 	});
-};
 
-// Add required external files - note: key must be set before loading this module
-if ($('script[src*="www.google.com/uds/api?file=uds.js"]').length == 0) {
-	if (!$.googleSearchKey) {
-		throw 'Missing Google Search Key';
+	// Add required external files - note: key must be set before loading this module
+	if ($('script[src*="www.google.com/uds/api?file=uds.js"]').length === 0) {
+		if (!$.googleSearchKey) {
+			throw 'Missing Google Search Key';
+		}
+		document.write('<script type="text/javascript" src="http://www.google.com/uds/' +
+			'api?file=uds.js&v=1.0&key=' + $.googleSearchKey + '"></script>\n' +
+			'<link type="text/css" href="http://www.google.com/uds/css/gsearch.css" rel="stylesheet"/>\n');
 	}
 	document.write('<script type="text/javascript" src="http://www.google.com/uds/' +
-		'api?file=uds.js&v=1.0&key=' + $.googleSearchKey + '"></script>\n' +
-		'<link type="text/css" href="http://www.google.com/uds/css/gsearch.css" rel="stylesheet"/>\n');
-}
-document.write('<script type="text/javascript" src="http://www.google.com/uds/' +
-	'solutions/newsbar/gsnewsbar.js"></script>\n' +
-	'<link type="text/css" href="http://www.google.com/uds/solutions/newsbar/gsnewsbar.css" ' +
-	'rel="stylesheet"/>\n');
-      
-/* Initialise the GSNewsbar functionality. */
-var plugin = $.gsnewsbar = new GSNewsbar(); // Singleton instance
+		'solutions/newsbar/gsnewsbar.js"></script>\n' +
+		'<link type="text/css" href="http://www.google.com/uds/solutions/newsbar/gsnewsbar.css" ' +
+		'rel="stylesheet"/>\n');
 
 })(jQuery);
